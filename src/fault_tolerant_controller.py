@@ -9,7 +9,7 @@ sys.path.insert(0, cur_path+"/..")
 
 from src.utility.logger import *
 
-from dronekit import connect
+from dronekit import connect, mavutil
 import time
 
 logging.debug('Beginning of code...')
@@ -57,7 +57,7 @@ if __name__ == '__main__':
                     help="Vehicle connection target string. If not specified, SITL automatically started and used.")
     args = parser.parse_args()
 
-    connection_string = 'tcp:127.0.0.1:5760'
+    connection_string = '127.0.0.1:14551'
     # connection_string = args.connect
     sitl = None
 
@@ -65,9 +65,38 @@ if __name__ == '__main__':
         logging.critical("No connection string specified, exiting code.")
         exit()
 
+
     with Autopilot(connection_string) as drone:
         logging.debug("Ready: %s", drone)
 
+        def set_servo(motor_num, pwm_value):
+            pwm_value_int = int(pwm_value)
+            msg = drone.master.message_factory.command_long_encode(
+                0, 0, 
+                mavutil.mavlink.MAV_CMD_DO_SET_SERVO,
+                0,
+                motor_num,
+                pwm_value_int,
+                0,0,0,0,0
+                )
+            drone.master.send_mavlink(msg)
+
+        def actuator_test(motor_num, set_reset):
+        # get servo function - what this motor does
+            logging.debug("GOT PARAM: %s", drone.master.parameters[f'SERVO{motor_num}_FUNCTION'])
+            time.sleep(1)
+
+            # set servo function - change to 1 for RCPassThru
+            drone.master.parameters[f'SERVO{motor_num}_FUNCTION'] = set_reset
+            time.sleep(1)
+
+        actuator_test(1, 33)
+
         time.sleep(2)
         logging.debug("Last Heartbeat: %s", drone.last_heartbeat)
+
+        actuator_test(1, 1)
+
+        set_servo(1, 1000)
+
         time.sleep(10)
